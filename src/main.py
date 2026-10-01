@@ -93,6 +93,13 @@ def main():
         df = df.sort_values("date").reset_index(drop=True)
 
         print("행 수:", len(df))
+        print("API 반환 행 수:", len(price_data["output2"]))
+        print(
+            "API 날짜 범위:",
+            price_data["output2"][-1]["stck_bsop_date"],
+            "~",
+            price_data["output2"][0]["stck_bsop_date"],
+        )
         print(
             "날짜 범위:",
             df["date"].min(),
