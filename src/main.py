@@ -68,6 +68,15 @@ def main():
     print()
     print("행 수:", len(df))
 
+    print()
+    print("결측치:")
+    print(df.isna().sum())
+
+    print()
+    print("중복 날짜:", df["date"].duplicated().sum())
+
+    print()
+    print("날짜 범위:", df["date"].min(), "~", df["date"].max())
 
 if __name__ == "__main__":
     main()
