@@ -113,24 +113,70 @@ def main():
     project_id = "backtest-510311"
     table_id = f"{project_id}.market_data.daily_stock_price"
 
-    # 12. BigQuery 적재 설정
+    # 12. 임시 테이블 생성
+    temp_table_id = f"{table_id}_temp"
+
     job_config = bigquery.LoadJobConfig(
-        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
     )
 
-    # 13. DataFrame → BigQuery
     job = client.load_table_from_dataframe(
         df,
-        table_id,
+        temp_table_id,
         job_config=job_config,
     )
 
     job.result()
-
+    
+    # 13. MERGE로 중복 방지
+    merge_query = f"""
+    MERGE `{table_id}` AS target
+    USING `{temp_table_id}` AS source
+    ON target.ticker = source.ticker
+    AND target.date = source.date
+    
+    WHEN MATCHED THEN
+      UPDATE SET
+        open = source.open,
+        high = source.high,
+        low = source.low,
+        close = source.close,
+        volume = source.volume,
+        trading_value = source.trading_value
+    
+    WHEN NOT MATCHED THEN
+      INSERT (
+        date,
+        ticker,
+        open,
+        high,
+        low,
+        close,
+        volume,
+        trading_value
+      )
+      VALUES (
+        source.date,
+        source.ticker,
+        source.open,
+        source.high,
+        source.low,
+        source.close,
+        source.volume,
+        source.trading_value
+    )
+    """
+    
+    query_job = client.query(merge_query)
+    query_job.result()
+    
+    # 14. 임시 테이블 삭제
+    client.delete_table(temp_table_id, not_found_ok=True)
+    
     print()
     print("BigQuery 적재 성공")
     print("테이블:", table_id)
-    print("적재 행 수:", len(df))
+    print("처리 행 수:", len(df))
 
 
 if __name__ == "__main__":
