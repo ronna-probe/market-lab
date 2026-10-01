@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   run-python:
     runs-on: ubuntu-latest
@@ -23,6 +27,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/599954354904/locations/global/workloadIdentityPools/github-actions/providers/github'
+          service_account: 'market-lab-github-actions@backtest-510311.iam.gserviceaccount.com'
 
       - name: Run Python
         env:
