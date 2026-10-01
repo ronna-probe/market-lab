@@ -31,9 +31,9 @@ def get_access_token():
 
 def get_daily_price(
     access_token,
-    stock_code=,
-    start_date=,
-    end_date=,
+    stock_code,
+    start_date,
+    end_date,
 ):
     url = "https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
 
