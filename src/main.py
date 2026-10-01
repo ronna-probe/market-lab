@@ -4,6 +4,8 @@ from src.data.kis import (
     get_daily_price_range,  # backfill
 )
 
+from src.data.universe import get_kospi_tickers
+
 import pandas as pd
 from google.cloud import bigquery
 
@@ -14,13 +16,15 @@ def main():
     access_token = result["access_token"]
 
     # 2. 수집할 종목
-    tickers = [
-        "005930",  # 삼성전자
-        "000660",  # SK하이닉스
-    ]
+    tickers = get_kospi_tickers()
 
+    print()
+    print("KOSPI 종목 Universe 생성 성공")
+    print("종목 수:", len(tickers))
+    print("앞 10개:", tickers[:10])
+    
     # 3. 조회 기간
-    start_date = "20210101"
+    start_date = "20260929"
     end_date = "20261001"
 
     # 4. 종목별 데이터 수집
