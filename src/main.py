@@ -1,4 +1,8 @@
-from src.data.kis import get_access_token, get_daily_price
+from src.data.kis import (
+    get_access_token,
+    get_daily_price,
+    get_daily_price_range,  # backfill
+)
 
 import pandas as pd
 from google.cloud import bigquery
@@ -26,12 +30,26 @@ def main():
         print()
         print("데이터 수집:", ticker)
 
+        """
         price_data = get_daily_price(
             access_token,
             ticker,
             start_date,
             end_date,
         )
+        """
+
+        # backfill
+        rows = get_daily_price_range(
+            access_token,
+            ticker,
+            start_date,
+            end_date,
+        )
+        
+        price_data = {
+            "output2": rows
+        }
 
         df = pd.DataFrame(price_data["output2"])
 
