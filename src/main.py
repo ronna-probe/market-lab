@@ -139,7 +139,8 @@ def main():
     client = bigquery.Client()
 
     # 9. BigQuery 테이블
-    table_id = "프로젝트ID.market_data.daily_stock_price"
+    project_id = "backtest-510311"
+    table_id = f"{project_id}.market_data.daily_stock_price"
 
     # 10. 임시 테이블 생성
     temp_table_id = f"{table_id}_temp"
