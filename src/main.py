@@ -1,4 +1,4 @@
-from src.data.kis import get_access_token
+from data.kis import get_access_token
 
 
 def main():
