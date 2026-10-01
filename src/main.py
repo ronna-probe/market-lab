@@ -24,7 +24,7 @@ def main():
     print("앞 10개:", tickers[:10])
     
     # 3. 조회 기간
-    start_date = "20260929"
+    start_date = "20261001"
     end_date = "20261001"
 
     # 4. 종목별 데이터 수집
@@ -44,12 +44,19 @@ def main():
         """
 
         # backfill
-        rows = get_daily_price_range(
-            access_token,
-            ticker,
-            start_date,
-            end_date,
-        )
+        try:
+            rows = get_daily_price_range(
+                access_token,
+                ticker,
+                start_date,
+                end_date,
+            )
+    
+        except Exception as e:
+            print()
+            print("ERROR:", ticker)
+            print("오류 내용:", repr(e))
+            raise
         
         price_data = {
             "output2": rows
