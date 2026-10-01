@@ -134,6 +134,8 @@ def main():
     USING `{temp_table_id}` AS source
     ON target.ticker = source.ticker
     AND target.date = source.date
+    AND target.date BETWEEN DATE('{df["date"].min()}')
+                        AND DATE('{df["date"].max()}')
     
     WHEN MATCHED THEN
       UPDATE SET
