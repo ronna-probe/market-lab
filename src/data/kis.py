@@ -29,6 +29,37 @@ def get_access_token():
     return response.json()
 
 
+def get_daily_price(access_token, stock_code="005930"):
+    url = "https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
+
+    headers = {
+        "content-type": "application/json",
+        "authorization": f"Bearer {access_token}",
+        "appkey": os.getenv("KIS_APP_KEY"),
+        "appsecret": os.getenv("KIS_APP_SECRET"),
+        "tr_id": "FHKST03010100",
+    }
+
+    params = {
+        "FID_COND_MRKT_DIV_CODE": "J",
+        "FID_INPUT_ISCD": stock_code,
+        "FID_INPUT_DATE_1": "20260101",
+        "FID_INPUT_DATE_2": "20261001",
+        "FID_PERIOD_DIV_CODE": "D",
+        "FID_ORG_ADJ_PRC": "1",
+    }
+
+    response = requests.get(
+        url,
+        headers=headers,
+        params=params,
+    )
+
+    response.raise_for_status()
+
+    return response.json()
+
+
 if __name__ == "__main__":
     result = get_access_token()
     print(result)
