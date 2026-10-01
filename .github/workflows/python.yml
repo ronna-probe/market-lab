@@ -25,5 +25,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Python
+        env:
+          KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
         run: |
           python src/main.py
