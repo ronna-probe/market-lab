@@ -16,8 +16,15 @@ def main():
     access_token = result["access_token"]
 
     # 2. 수집할 종목
+    BATCH_SIZE = 50
+    BATCH_START = 0
+
     tickers = get_kospi_tickers()
 
+    batch_tickers = tickers[
+        BATCH_START:BATCH_START + BATCH_SIZE
+    ]
+    
     print()
     print("KOSPI 종목 Universe 생성 성공")
     print("종목 수:", len(tickers))
@@ -30,7 +37,7 @@ def main():
     # 4. 종목별 데이터 수집
     all_data = []
 
-    for ticker in tickers:
+    for ticker in batch_tickers:
         print()
         print("데이터 수집:", ticker)
 
@@ -62,19 +69,33 @@ def main():
             "output2": rows
         }
 
+        required_columns = [
+            "stck_bsop_date",
+            "stck_oprc",
+            "stck_hgpr",
+            "stck_lwpr",
+            "stck_clpr",
+            "acml_vol",
+            "acml_tr_pbmn",
+        ]
+        
         df = pd.DataFrame(price_data["output2"])
 
-        df = df[
-            [
-                "stck_bsop_date",
-                "stck_oprc",
-                "stck_hgpr",
-                "stck_lwpr",
-                "stck_clpr",
-                "acml_vol",
-                "acml_tr_pbmn",
-            ]
-        ].rename(
+        missing_columns = [
+            column
+            for column in required_columns
+            if column not in df.columns
+        ]
+
+        if missing_columns:
+            print()
+            print("비정상 응답 - 종목 건너뜀:", ticker)
+            print("필요한 컬럼:", required_columns)
+            print("실제 컬럼:", df.columns.tolist())
+            print("응답 데이터:", price_data["output2"])
+            continue
+        
+        df = df[required_columns].rename(
             columns={
                 "stck_bsop_date": "date",
                 "stck_oprc": "open",
