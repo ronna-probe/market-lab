@@ -17,7 +17,7 @@ def main():
 
     # 2. 수집할 종목
     BATCH_SIZE = 50
-    BATCH_START = 0
+    BATCH_START = 50
 
     tickers = get_kospi_tickers()
 
