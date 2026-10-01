@@ -1,5 +1,6 @@
 import os
 import requests
+from datetime import datetime, timedelta  # backfill
 
 
 def get_access_token():
@@ -65,3 +66,61 @@ def get_daily_price(
     return response.json()
     result = get_access_token()
     print(result)
+
+
+def get_daily_price_range(
+    access_token,
+    stock_code,
+    start_date,
+    end_date,
+):
+    start = datetime.strptime(
+        start_date,
+        "%Y%m%d",
+    ).date()
+
+    end = datetime.strptime(
+        end_date,
+        "%Y%m%d",
+    ).date()
+
+    all_rows = []
+
+    chunk_start = start
+
+    while chunk_start <= end:
+        chunk_end = min(
+            chunk_start + timedelta(days=90),
+            end,
+        )
+
+        chunk_start_str = chunk_start.strftime("%Y%m%d")
+        chunk_end_str = chunk_end.strftime("%Y%m%d")
+
+        print(
+            "API 조회:",
+            stock_code,
+            chunk_start_str,
+            "~",
+            chunk_end_str,
+        )
+
+        result = get_daily_price(
+            access_token,
+            stock_code,
+            chunk_start_str,
+            chunk_end_str,
+        )
+
+        rows = result.get("output2", [])
+
+        print(
+            "  반환 행 수:",
+            len(rows),
+        )
+
+        all_rows.extend(rows)
+
+        chunk_start = chunk_end + timedelta(days=1)
+
+    return all_rows
