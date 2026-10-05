@@ -23,7 +23,7 @@ def check_eod_time():
 
 def collect_daily_prices():
     # 1. EOD 수집 기준일 및 실행 시간 확인
-    # check_eod_time()
+    check_eod_time()
 
     now = datetime.now(KST)
     today = now.strftime("%Y%m%d")
