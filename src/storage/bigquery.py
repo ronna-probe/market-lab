@@ -10,15 +10,17 @@ def save_daily_stock_price(df: pd.DataFrame):
     """
     일봉 데이터를 BigQuery에 저장한다.
 
-    동일한 (ticker, date)가 이미 존재하면 건너뛰고,
-    존재하지 않는 데이터만 INSERT한다.
+    동일한 (ticker, date)를 기준으로
+    데이터가 없으면 INSERT,
+    데이터가 다르면 UPDATE,
+    데이터가 같으면 PASS한다.
     """
 
     client = bigquery.Client()
 
     temp_table_id = f"{TABLE_ID}_temp"
 
-    # 1. 임시 테이블 적재
+    # 1. 임시 테이블에 수집 데이터 적재
     job_config = bigquery.LoadJobConfig(
         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
     )
@@ -31,13 +33,29 @@ def save_daily_stock_price(df: pd.DataFrame):
 
     job.result()
 
-    # 2. 기존 데이터는 유지하고 새로운 데이터만 INSERT
+    # 2. 기존 데이터와 비교하여 INSERT 또는 UPDATE
     merge_query = f"""
     MERGE `{TABLE_ID}` AS target
     USING `{temp_table_id}` AS source
 
     ON target.ticker = source.ticker
     AND target.date = source.date
+
+    WHEN MATCHED AND (
+        target.open IS DISTINCT FROM source.open
+        OR target.high IS DISTINCT FROM source.high
+        OR target.low IS DISTINCT FROM source.low
+        OR target.close IS DISTINCT FROM source.close
+        OR target.volume IS DISTINCT FROM source.volume
+        OR target.trading_value IS DISTINCT FROM source.trading_value
+    )
+    THEN UPDATE SET
+        open = source.open,
+        high = source.high,
+        low = source.low,
+        close = source.close,
+        volume = source.volume,
+        trading_value = source.trading_value
 
     WHEN NOT MATCHED THEN
       INSERT (
