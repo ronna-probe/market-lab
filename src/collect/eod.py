@@ -1,45 +1,42 @@
-from datetime import datetime
-
 import pandas as pd
 
-from src.data.kis import (
-    get_access_token,
-    get_daily_price_range,
-)
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from src.data.kis import get_access_token, get_daily_price
 from src.data.universe import get_kospi_tickers
 
 
-def run_eod_collection(
-    batch_start=0,
-    batch_size=50,
-):
-    """
-    EOD 시장 데이터를 수집한다.
+KST = ZoneInfo("Asia/Seoul")
 
-    실행일 당일의 데이터를 수집한다.
-    """
 
-    # --------------------------------------------------
-    # 1. 수집 기준일
-    # --------------------------------------------------
+def check_eod_time():
+    """EOD 데이터 수집 가능 시간 확인"""
+    now = datetime.now(KST)
 
-    collection_date = datetime.now().strftime("%Y%m%d")
+    if now.hour < 16:
+        raise RuntimeError(
+            "EOD 데이터 수집은 16:00 이후에만 가능합니다. "
+            f"현재 시각: {now.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+
+
+def collect_daily_prices():
+    # 1. EOD 수집 기준일 및 실행 시간 확인
+    # check_eod_time()
+
+    now = datetime.now(KST)
+    today = now.strftime("%Y%m%d")
 
     print()
-    print("EOD 수집 기준일:", collection_date)
+    print("EOD 수집 기준일:", today)
 
-    # --------------------------------------------------
-    # 2. KIS Access Token
-    # --------------------------------------------------
-
-    access_token = get_access_token()
+    # 2. KIS 인증 및 종목 Universe 생성
+    result = get_access_token()
+    access_token = result["access_token"]
 
     print()
     print("KIS Access Token 발급 성공")
-
-    # --------------------------------------------------
-    # 3. KOSPI Universe
-    # --------------------------------------------------
 
     tickers = get_kospi_tickers()
 
@@ -48,48 +45,43 @@ def run_eod_collection(
     print("전체 종목 수:", len(tickers))
     print("앞 10개:", tickers[:10])
 
-    # --------------------------------------------------
-    # 4. Batch
-    # --------------------------------------------------
+    # 테스트 및 배치 실행을 위한 종목 범위
+    BATCH_SIZE = 50
+    BATCH_START = 0
 
     batch_tickers = tickers[
-        batch_start:batch_start + batch_size
+        BATCH_START:BATCH_START + BATCH_SIZE
     ]
 
     print()
     print("수집 대상 종목 수:", len(batch_tickers))
     print(
         "Batch 범위:",
-        batch_start,
+        BATCH_START,
         "~",
-        batch_start + len(batch_tickers) - 1,
+        BATCH_START + len(batch_tickers) - 1,
     )
 
-    # --------------------------------------------------
-    # 5. 종목별 EOD 데이터 수집
-    # --------------------------------------------------
-
+    # 3. 종목별 EOD 데이터 수집 및 정제
     all_data = []
 
     for ticker in batch_tickers:
-
         print()
         print("데이터 수집:", ticker)
 
-        rows = get_daily_price_range(
-            access_token,
-            ticker,
-            collection_date,
-            collection_date,
-        )
+        try:
+            price_data = get_daily_price(
+                access_token,
+                ticker,
+                today,
+                today,
+            )
 
-        price_data = {
-            "output2": rows
-        }
-
-        df = pd.DataFrame(
-            price_data["output2"]
-        )
+        except Exception as e:
+            print()
+            print("ERROR:", ticker)
+            print("오류 내용:", repr(e))
+            raise
 
         required_columns = [
             "stck_bsop_date",
@@ -101,9 +93,7 @@ def run_eod_collection(
             "acml_tr_pbmn",
         ]
 
-        # --------------------------------------------------
-        # 비정상 응답 확인
-        # --------------------------------------------------
+        df = pd.DataFrame(price_data["output2"])
 
         missing_columns = [
             column
@@ -112,36 +102,12 @@ def run_eod_collection(
         ]
 
         if missing_columns:
-
             print()
-            print(
-                "비정상 응답 - 종목 건너뜀:",
-                ticker,
-            )
-
-            print(
-                "필요한 컬럼:",
-                required_columns,
-            )
-
-            print(
-                "실제 컬럼:",
-                df.columns.tolist(),
-            )
-
+            print("비정상 응답 - 종목 건너뜀:", ticker)
+            print("실제 컬럼:", df.columns.tolist())
             continue
 
-        # --------------------------------------------------
-        # 필요한 컬럼만 선택
-        # --------------------------------------------------
-
-        df = df[required_columns]
-
-        # --------------------------------------------------
-        # 컬럼명 변경
-        # --------------------------------------------------
-
-        df = df.rename(
+        df = df[required_columns].rename(
             columns={
                 "stck_bsop_date": "date",
                 "stck_oprc": "open",
@@ -153,21 +119,6 @@ def run_eod_collection(
             }
         )
 
-        # --------------------------------------------------
-        # ticker 추가
-        # --------------------------------------------------
-
-        df["ticker"] = ticker
-
-        # --------------------------------------------------
-        # 데이터 타입 변환
-        # --------------------------------------------------
-
-        df["date"] = pd.to_datetime(
-            df["date"],
-            format="%Y%m%d",
-        ).dt.date
-
         numeric_columns = [
             "open",
             "high",
@@ -177,13 +128,28 @@ def run_eod_collection(
             "trading_value",
         ]
 
-        df[numeric_columns] = df[
-            numeric_columns
-        ].apply(pd.to_numeric)
+        df[numeric_columns] = df[numeric_columns].apply(
+            pd.to_numeric,
+            errors="coerce",
+        )
 
-        # --------------------------------------------------
-        # 컬럼 순서 정리
-        # --------------------------------------------------
+        # EOD 데이터 품질 검증
+        if df["close"].isna().any() or (df["close"] <= 0).any():
+            print()
+            print("유효하지 않은 종가 - 종목 건너뜀:", ticker)
+            continue
+
+        if df["volume"].isna().any() or (df["volume"] < 0).any():
+            print()
+            print("유효하지 않은 거래량 - 종목 건너뜀:", ticker)
+            continue
+
+        df["date"] = pd.to_datetime(
+            df["date"],
+            format="%Y%m%d",
+        ).dt.date
+
+        df["ticker"] = ticker
 
         df = df[
             [
@@ -198,107 +164,33 @@ def run_eod_collection(
             ]
         ]
 
-        # --------------------------------------------------
-        # 날짜 정렬
-        # --------------------------------------------------
+        df = df.sort_values("date").reset_index(drop=True)
 
-        df = df.sort_values(
-            "date"
-        ).reset_index(drop=True)
-
-        print(
-            "행 수:",
-            len(df),
-        )
-
-        if len(df) > 0:
-            print(
-                "날짜:",
-                df["date"].min(),
-            )
+        print("행 수:", len(df))
+        print("날짜:", df["date"].min())
 
         all_data.append(df)
 
-    # --------------------------------------------------
-    # 6. 수집 데이터 결합
-    # --------------------------------------------------
-
+    # 4. 전체 종목 데이터 결합 및 최종 정렬
     if not all_data:
-        print()
-        print("수집된 데이터가 없습니다.")
-        print(
-            "휴장일이거나 수집 가능한 데이터가 없을 수 있습니다."
-        )
-        return
+        raise RuntimeError("수집된 데이터가 없습니다.")
 
-    final_df = pd.concat(
+    df = pd.concat(
         all_data,
         ignore_index=True,
     )
 
-    final_df = final_df.sort_values(
+    df = df.sort_values(
         ["ticker", "date"]
     ).reset_index(drop=True)
 
-    # --------------------------------------------------
-    # 7. 기본 검증
-    # --------------------------------------------------
-
     print()
-    print("=== 데이터 검증 ===")
+    print("EOD 데이터 수집 성공")
+    print("종목 수:", df["ticker"].nunique())
+    print("전체 행 수:", len(df))
 
-    print(
-        "전체 행 수:",
-        len(final_df),
-    )
+    return df
 
-    print(
-        "종목 수:",
-        final_df["ticker"].nunique(),
-    )
-
-    print(
-        "수집 날짜:",
-        final_df["date"].min(),
-    )
-
-    missing_count = (
-        final_df.isnull()
-        .sum()
-        .sum()
-    )
-
-    print(
-        "결측값 수:",
-        missing_count,
-    )
-
-    duplicate_count = final_df.duplicated(
-        subset=["ticker", "date"]
-    ).sum()
-
-    print(
-        "중복 행 수:",
-        duplicate_count,
-    )
-
-    # --------------------------------------------------
-    # 8. 결과 출력
-    # --------------------------------------------------
-
-    print()
-    print("=== 수집 결과 ===")
-    print(final_df.head())
-
-    print()
-    print(
-        "처리 완료:",
-        len(final_df),
-        "rows",
-    )
 
 if __name__ == "__main__":
-    run_eod_collection(
-        batch_start=0,
-        batch_size=50,
-    )
+    collect_daily_prices()
