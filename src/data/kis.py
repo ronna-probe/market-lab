@@ -1,16 +1,20 @@
 import os
+
 import requests
-from datetime import datetime, timedelta  # backfill
+
+
+KIS_BASE_URL = "https://openapi.koreainvestment.com:9443"
 
 
 def get_access_token():
+    """KIS API Access Token을 발급받는다."""
     app_key = os.getenv("KIS_APP_KEY")
     app_secret = os.getenv("KIS_APP_SECRET")
 
-    url = "https://openapi.koreainvestment.com:9443/oauth2/tokenP"
+    url = f"{KIS_BASE_URL}/oauth2/tokenP"
 
     headers = {
-        "content-type": "application/json"
+        "content-type": "application/json",
     }
 
     body = {
@@ -36,7 +40,12 @@ def get_daily_price(
     start_date,
     end_date,
 ):
-    url = "https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
+    """KIS API에서 종목의 일봉 데이터를 조회한다."""
+    url = (
+        f"{KIS_BASE_URL}"
+        "/uapi/domestic-stock/v1/quotations/"
+        "inquire-daily-itemchartprice"
+    )
 
     headers = {
         "content-type": "application/json",
@@ -64,64 +73,3 @@ def get_daily_price(
     response.raise_for_status()
 
     return response.json()
-    result = get_access_token()
-    print(result)
-
-
-# backfill
-def get_daily_price_range(
-    access_token,
-    stock_code,
-    start_date,
-    end_date,
-):
-    start = datetime.strptime(
-        start_date,
-        "%Y%m%d",
-    ).date()
-
-    end = datetime.strptime(
-        end_date,
-        "%Y%m%d",
-    ).date()
-
-    all_rows = []
-
-    chunk_start = start
-
-    while chunk_start <= end:
-        chunk_end = min(
-            chunk_start + timedelta(days=90),
-            end,
-        )
-
-        chunk_start_str = chunk_start.strftime("%Y%m%d")
-        chunk_end_str = chunk_end.strftime("%Y%m%d")
-
-        print(
-            "API 조회:",
-            stock_code,
-            chunk_start_str,
-            "~",
-            chunk_end_str,
-        )
-
-        result = get_daily_price(
-            access_token,
-            stock_code,
-            chunk_start_str,
-            chunk_end_str,
-        )
-
-        rows = result.get("output2", [])
-
-        print(
-            "  반환 행 수:",
-            len(rows),
-        )
-
-        all_rows.extend(rows)
-
-        chunk_start = chunk_end + timedelta(days=1)
-
-    return all_rows
