@@ -229,6 +229,7 @@ def collect_daily_prices(batch_start=0, batch_size=50):
                 item["error"],
             )
 
+    return df
 
 if __name__ == "__main__":
     collect_daily_prices()
