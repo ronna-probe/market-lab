@@ -2,11 +2,6 @@ name: Python CI
 
 on:
   workflow_dispatch:
-    inputs:
-      batch_size:
-        description: "Batch size"
-        required: true
-        default: "100"
 
 permissions:
   id-token: write
@@ -36,41 +31,9 @@ jobs:
           workload_identity_provider: 'projects/599954354904/locations/global/workloadIdentityPools/github-actions/providers/github'
           service_account: 'market-lab-github-actions@backtest-510311.iam.gserviceaccount.com'
 
-      - name: Run all batches
+      - name: Run Python
         env:
           KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
           KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
-          BATCH_SIZE: ${{ inputs.batch_size }}
         run: |
-          batch_start=0
-          failed=0
-
-          while true; do
-            echo ""
-            echo "========================================"
-            echo "Batch start: ${batch_start}"
-            echo "Batch size: ${BATCH_SIZE}"
-            echo "========================================"
-
-            if BATCH_START="${batch_start}" python -m src.main; then
-              echo "Batch 성공: ${batch_start}"
-            else
-              echo "Batch 실패: ${batch_start}"
-              failed=1
-            fi
-
-            batch_start=$((batch_start + BATCH_SIZE))
-
-            if [ "${batch_start}" -ge 888 ]; then
-              break
-            fi
-          done
-
-          if [ "${failed}" -ne 0 ]; then
-            echo ""
-            echo "일부 Batch에서 실패가 발생했습니다."
-            exit 1
-          fi
-
-          echo ""
-          echo "전체 Batch 실행 완료"
+          python -m src.main

@@ -3,8 +3,7 @@ import pandas as pd
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from src.data.kis import get_access_token, get_daily_price
-from src.data.universe import get_kospi_tickers
+from src.data.kis import get_daily_price
 
 
 KST = ZoneInfo("Asia/Seoul")
@@ -21,9 +20,14 @@ def check_eod_time():
         )
 
 
-def collect_daily_prices(batch_start=0, batch_size=100):
+def collect_daily_prices(
+    access_token,
+    tickers,
+    batch_start=0,
+    batch_size=100,
+):
     # 1. EOD 수집 기준일 및 실행 시간 확인
-    # check_eod_time()
+    check_eod_time()
 
     now = datetime.now(KST)
     today = now.strftime("%Y%m%d")
@@ -31,21 +35,7 @@ def collect_daily_prices(batch_start=0, batch_size=100):
     print()
     print("EOD 수집 기준일:", today)
 
-    # 2. KIS 인증 및 종목 Universe 생성
-    result = get_access_token()
-    access_token = result["access_token"]
-
-    print()
-    print("KIS Access Token 발급 성공")
-
-    tickers = get_kospi_tickers()
-
-    print()
-    print("KOSPI 종목 Universe 생성 성공")
-    print("전체 종목 수:", len(tickers))
-    print("앞 10개:", tickers[:10])
-
-    # 테스트 및 배치 실행을 위한 종목 범위
+    # 전달받은 Universe에서 현재 배치만 선택한다.
     batch_tickers = tickers[
         batch_start:batch_start + batch_size
     ]
@@ -59,7 +49,7 @@ def collect_daily_prices(batch_start=0, batch_size=100):
         batch_start + len(batch_tickers) - 1,
     )
 
-    # 3. 종목별 EOD 데이터 수집 및 정제
+    # 2. 종목별 EOD 데이터 수집 및 정제
     all_data = []
     success_tickers = []
     failed_tickers = []
@@ -198,7 +188,7 @@ def collect_daily_prices(batch_start=0, batch_size=100):
         success_tickers.append(ticker)
         all_data.append(df)
 
-    # 4. 전체 종목 데이터 결합 및 최종 정렬
+    # 3. 전체 종목 데이터 결합 및 최종 정렬
     if not all_data:
         raise RuntimeError("수집된 데이터가 없습니다.")
 
@@ -230,6 +220,3 @@ def collect_daily_prices(batch_start=0, batch_size=100):
             )
 
     return df
-
-if __name__ == "__main__":
-    collect_daily_prices()
