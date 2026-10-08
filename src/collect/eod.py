@@ -21,7 +21,7 @@ def check_eod_time():
         )
 
 
-def collect_daily_prices(batch_start=0, batch_size=50):
+def collect_daily_prices(batch_start=0, batch_size=100):
     # 1. EOD 수집 기준일 및 실행 시간 확인
     # check_eod_time()
 
