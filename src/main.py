@@ -1,5 +1,5 @@
 from src.collect.eod import collect_daily_prices
-from src.data.kis import get_access_token
+from src.data.kis import get_access_token, check_trading_day
 from src.data.universe import get_kospi_tickers
 from src.storage.bigquery import save_daily_stock_price
 
@@ -7,9 +7,33 @@ from src.storage.bigquery import save_daily_stock_price
 def main():
     batch_size = 100
 
-    # Universe와 Access Token은 전체 실행에서 한 번만 생성한다.
-    tickers = get_kospi_tickers()
+    # KIS Access Token은 전체 실행에서 한 번만 발급한다.
     access_token = get_access_token()["access_token"]
+
+    # 오늘이 국내주식 거래일인지 먼저 확인한다.
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    today = datetime.now(
+        ZoneInfo("Asia/Seoul")
+    ).strftime("%Y%m%d")
+
+    holiday_info = check_trading_day(
+        access_token,
+        today,
+    )
+
+    print()
+    print("거래일 확인:", holiday_info)
+
+    if holiday_info.get("opnd_yn") != "Y":
+        print()
+        print("오늘은 국내주식 개장일이 아닙니다.")
+        print("EOD 수집을 종료합니다.")
+        return
+
+    # 거래일인 경우에만 Universe를 조회한다.
+    tickers = get_kospi_tickers()
 
     total_tickers = len(tickers)
 

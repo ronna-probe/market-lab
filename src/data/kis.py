@@ -73,3 +73,44 @@ def get_daily_price(
     response.raise_for_status()
 
     return response.json()
+
+
+def check_trading_day(access_token, date):
+    """KIS API로 해당 날짜의 국내주식 개장 여부를 확인한다."""
+    url = (
+        f"{KIS_BASE_URL}"
+        "/uapi/domestic-stock/v1/quotations/chk-holiday"
+    )
+
+    headers = {
+        "content-type": "application/json",
+        "authorization": f"Bearer {access_token}",
+        "appkey": os.getenv("KIS_APP_KEY"),
+        "appsecret": os.getenv("KIS_APP_SECRET"),
+        "tr_id": "CTCA0903R",
+    }
+
+    params = {
+        "BASS_DT": date,
+        "CTX_AREA_FK": "",
+        "CTX_AREA_NK": "",
+    }
+
+    response = requests.get(
+        url,
+        headers=headers,
+        params=params,
+    )
+
+    response.raise_for_status()
+
+    data = response.json()
+
+    output = data.get("output", [])
+
+    if not output:
+        raise RuntimeError(
+            f"휴장일 API 응답이 없습니다: {date}"
+        )
+
+    return output[0]
