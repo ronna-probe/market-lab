@@ -19,6 +19,8 @@ def save_daily_stock_price(df: pd.DataFrame):
     client = bigquery.Client()
 
     temp_table_id = f"{TABLE_ID}_temp"
+    min_date = df["date"].min().isoformat()
+    max_date = df["date"].max().isoformat()
 
     # 1. 임시 테이블에 수집 데이터 적재
     job_config = bigquery.LoadJobConfig(
@@ -40,7 +42,8 @@ def save_daily_stock_price(df: pd.DataFrame):
 
     ON target.ticker = source.ticker
     AND target.date = source.date
-
+    AND target.date BETWEEN DATE('{min_date}') AND DATE('{max_date}')
+    
     WHEN MATCHED AND (
         target.open IS DISTINCT FROM source.open
         OR target.high IS DISTINCT FROM source.high
