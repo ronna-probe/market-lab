@@ -21,9 +21,9 @@ def check_eod_time():
         )
 
 
-def collect_daily_prices():
+def collect_daily_prices(batch_start=0, batch_size=50):
     # 1. EOD 수집 기준일 및 실행 시간 확인
-    check_eod_time()
+    # check_eod_time()
 
     now = datetime.now(KST)
     today = now.strftime("%Y%m%d")
@@ -46,24 +46,23 @@ def collect_daily_prices():
     print("앞 10개:", tickers[:10])
 
     # 테스트 및 배치 실행을 위한 종목 범위
-    BATCH_SIZE = 50
-    BATCH_START = 0
-
     batch_tickers = tickers[
-        BATCH_START:BATCH_START + BATCH_SIZE
+        batch_start:batch_start + batch_size
     ]
 
     print()
     print("수집 대상 종목 수:", len(batch_tickers))
     print(
         "Batch 범위:",
-        BATCH_START,
+        batch_start,
         "~",
-        BATCH_START + len(batch_tickers) - 1,
+        batch_start + len(batch_tickers) - 1,
     )
 
     # 3. 종목별 EOD 데이터 수집 및 정제
     all_data = []
+    success_tickers = []
+    failed_tickers = []
 
     for ticker in batch_tickers:
         print()
@@ -81,7 +80,13 @@ def collect_daily_prices():
             print()
             print("ERROR:", ticker)
             print("오류 내용:", repr(e))
-            raise
+
+            failed_tickers.append({
+                "ticker": ticker,
+                "error": repr(e),
+            })
+
+            continue
 
         required_columns = [
             "stck_bsop_date",
@@ -95,6 +100,11 @@ def collect_daily_prices():
 
         df = pd.DataFrame(price_data["output2"])
 
+        if df.empty:
+            print()
+            print("거래 데이터 없음 - 종목 건너뜀:", ticker)
+            continue
+
         missing_columns = [
             column
             for column in required_columns
@@ -105,6 +115,11 @@ def collect_daily_prices():
             print()
             print("비정상 응답 - 종목 건너뜀:", ticker)
             print("실제 컬럼:", df.columns.tolist())
+            continue
+
+        if df["stck_bsop_date"].isna().all():
+            print()
+            print("거래일 없음 - 종목 건너뜀:", ticker)
             continue
 
         df = df[required_columns].rename(
@@ -144,6 +159,17 @@ def collect_daily_prices():
             print("유효하지 않은 거래량 - 종목 건너뜀:", ticker)
             continue
 
+        if (
+            (df["high"] < df["open"]).any()
+            or (df["high"] < df["close"]).any()
+            or (df["low"] > df["open"]).any()
+            or (df["low"] > df["close"]).any()
+            or (df["high"] < df["low"]).any()
+        ):
+            print()
+            print("비정상 OHLC 데이터 - 종목 건너뜀:", ticker)
+            continue
+
         df["date"] = pd.to_datetime(
             df["date"],
             format="%Y%m%d",
@@ -169,6 +195,7 @@ def collect_daily_prices():
         print("행 수:", len(df))
         print("날짜:", df["date"].min())
 
+        success_tickers.append(ticker)
         all_data.append(df)
 
     # 4. 전체 종목 데이터 결합 및 최종 정렬
@@ -185,11 +212,22 @@ def collect_daily_prices():
     ).reset_index(drop=True)
 
     print()
-    print("EOD 데이터 수집 성공")
-    print("종목 수:", df["ticker"].nunique())
+    print("EOD 데이터 수집 완료")
+    print("대상 종목 수:", len(batch_tickers))
+    print("성공 종목 수:", len(success_tickers))
+    print("실패 종목 수:", len(failed_tickers))
     print("전체 행 수:", len(df))
 
-    return df
+    if failed_tickers:
+        print()
+        print("실패 종목:")
+
+        for item in failed_tickers:
+            print(
+                item["ticker"],
+                "-",
+                item["error"],
+            )
 
 
 if __name__ == "__main__":
