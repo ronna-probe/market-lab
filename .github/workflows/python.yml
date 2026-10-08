@@ -1,4 +1,4 @@
-name: Python CI
+name: Market Data EOD Collection
 
 on:
   workflow_dispatch:
