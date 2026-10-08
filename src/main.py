@@ -1,12 +1,19 @@
+import os
+
 from src.collect.eod import collect_daily_prices
 from src.storage.bigquery import save_daily_stock_price
 
 
 def main():
-    # 1. 오늘 일봉 데이터 수집
-    df = collect_daily_prices()
+    # GitHub Actions에서 배치 범위를 환경변수로 전달받는다.
+    batch_start = int(os.getenv("BATCH_START", "0"))
+    batch_size = int(os.getenv("BATCH_SIZE", "100"))
 
-    # 2. BigQuery 저장
+    df = collect_daily_prices(
+        batch_start=batch_start,
+        batch_size=batch_size,
+    )
+
     save_daily_stock_price(df)
 
 

@@ -5,6 +5,16 @@ on:
   #  branches:
   #    - main
   workflow_dispatch:
+    inputs:
+      batch_start:
+        description: "Batch start index"
+        required: true
+        default: "0"
+
+      batch_size:
+        description: "Batch size"
+        required: true
+        default: "100"
 
 permissions:
   id-token: write
@@ -38,5 +48,7 @@ jobs:
         env:
           KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
           KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+          BATCH_START: ${{ inputs.batch_start }}
+          BATCH_SIZE: ${{ inputs.batch_size }}
         run: |
           python -m src.main
