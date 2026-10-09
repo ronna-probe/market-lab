@@ -5,6 +5,7 @@ on:
 
   schedule:
     - cron: "30 7 * * 1-5"
+      timezone: "Asia/Seoul"
 
 permissions:
   id-token: write
