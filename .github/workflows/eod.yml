@@ -16,6 +16,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Debug schedule timing
+        run: |
+          echo "UTC now: $(date -u '+%Y-%m-%d %H:%M:%S')"
+          echo "Runner local time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+          echo "Scheduled expression: ${{ github.event.schedule }}"
+          
       - name: Checkout repository
         uses: actions/checkout@v4
 
